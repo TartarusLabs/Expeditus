@@ -41,13 +41,12 @@ See the [memory patching AMSI bypass](https://rastamouse.me/memory-patching-amsi
 
 As far as implementing it in our loader goes, we just need to make sure that our patch of the AmsiScanBuffer() function somehow places 0x80070057 (E_INVALIDARG) into the EAX register and then returns. We have not used the simplest and most obvious method of achieving this (mov eax, 0x80070057; ret) that is used in the blog post. This is because many AV products now have a signature to match those specific bytes. Instead we use the following code to get the same result while bypassing the existing AV signatures.
 			
-`and eax,0x00000000`
-
-`add eax,0x90940031`
-
-`sub eax,0x108CFFDA`
-
-`ret`
+```
+and eax,0x00000000
+add eax,0x90940031
+sub eax,0x108CFFDA
+ret
+```
 			
 We place zero into EAX by performing an AND of its current (irrelevant) value with 0x00000000. We then add 0x90940031 to it and subtract 0x108CFFDA which gets us to our required value of 0x80070057.
 
